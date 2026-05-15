@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>여름휴가 예정일정 공유</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Segoe UI', 'Malgun Gothic', sans-serif;
+  background: linear-gradient(135deg, #e0f2fe 0%, #f0fdf4 100%);
+  min-height: 100vh; padding: 24px 16px;
+}
+.container { max-width: 900px; margin: 0 auto; }
+.header { text-align: center; margin-bottom: 20px; }
+.header h1 { font-size: 1.8rem; font-weight: 800; color: #0369a1; }
+.header p { margin-top: 8px; color: #475569; font-size: 0.95rem; }
+
+.tabs {
+  display: flex; gap: 8px; margin-bottom: 20px;
+  background: #fff; border-radius: 14px; padding: 6px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.07);
+}
+.tab-btn {
+  flex: 1; padding: 11px 8px; border: none; border-radius: 10px;
+  font-size: 0.9rem; font-weight: 700; cursor: pointer;
+  transition: all 0.2s; background: transparent; color: #64748b;
+}
+.tab-btn.active { background: linear-gradient(135deg,#0ea5e9,#3b82f6); color:#fff; box-shadow:0 3px 10px rgba(14,165,233,0.35); }
+.tab-btn:not(.active):hover { background:#f0f9ff; color:#0369a1; }
+
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+.card { background:#fff; border-radius:20px; box-shadow:0 4px 24px rgba(0,0,0,0.08); padding:28px; margin-bottom:20px; }
+.form-row { display:flex; gap:16px; flex-wrap:wrap; }
+.form-group { flex:1; min-width:200px; }
+.form-group label { display:block; font-size:0.85rem; font-weight:700; color:#334155; margin-bottom:8px; }
+.form-group select, .form-group input {
+  width:100%; padding:11px 14px; border:2px solid #e2e8f0;
+  border-radius:10px; font-size:0.95rem; color:#1e293b;
+  outline:none; transition:border-color 0.2s; background:#f8fafc;
+}
+.form-group select:focus, .form-group input:focus { border-color:#38bdf8; background:#fff; }
+.form-group select:disabled, .form-group input:disabled {
+  background:#f1f5f9; color:#94a3b8; cursor:not-allowed;
+}
+
+.notice-box {
+  background:linear-gradient(90deg,#fef9c3,#fef3c7);
+  border-left:4px solid #f59e0b; border-radius:10px; padding:14px 18px; margin-bottom:20px;
+}
+.notice-box .notice-title { font-weight:700; color:#92400e; font-size:0.9rem; margin-bottom:6px; }
+.notice-box ul { list-style:none; }
+.notice-box ul li { font-size:0.85rem; color:#78350f; padding:2px 0; display:flex; gap:6px; }
+.notice-box ul li::before { content:'•'; color:#f59e0b; font-weight:bold; flex-shrink:0; }
+
+.months-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:20px; }
+.month-block { background:#f8fafc; border-radius:14px; padding:16px; }
+.month-title { text-align:center; font-weight:800; font-size:1rem; color:#0369a1; margin-bottom:12px; }
+.weekdays { display:grid; grid-template-columns:repeat(7,1fr); text-align:center; margin-bottom:6px; }
+.weekdays span { font-size:0.75rem; font-weight:700; padding:4px 0; color:#64748b; }
+.weekdays span.sun { color:#ef4444; }
+.weekdays span.sat { color:#3b82f6; }
+.days-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:3px; }
+.day {
+  aspect-ratio:1; display:flex; align-items:center; justify-content:center;
+  border-radius:8px; font-size:0.8rem; font-weight:500; cursor:pointer;
+  transition:all 0.15s; color:#334155; position:relative;
+}
+.day:hover:not(.disabled):not(.empty):not(.weekend):not(.holiday) { background:#e0f2fe; color:#0369a1; }
+.day.empty { cursor:default; }
+.day.weekend { color:#cbd5e1; cursor:not-allowed; background:#f1f5f9; }
+.day.weekend.sat { color:#bfdbfe; }
+.day.weekend.sun { color:#fecaca; }
+.day.selected { background:linear-gradient(135deg,#0ea5e9,#38bdf8); color:#fff!important; font-weight:700; box-shadow:0 2px 8px rgba(14,165,233,0.4); }
+.day.holiday { color:#ef4444!important; background:#fff1f2; cursor:not-allowed; font-weight:700; }
+.day.locked { cursor:not-allowed; opacity:0.5; }
+.holiday-dot { position:absolute; bottom:3px; left:50%; transform:translateX(-50%); width:4px; height:4px; background:#ef4444; border-radius:50%; display:block; }
+
+.selected-info { margin-top:16px; padding:14px; background:linear-gradient(135deg,#e0f2fe,#dbeafe); border-radius:12px; text-align:center; }
+.selected-info .count { font-size:0.9rem; color:#0369a1; font-weight:700; }
+.selected-info .dates { font-size:0.85rem; color:#475569; margin-top:4px; }
+.error-msg { background:#fef2f2; color:#991b1b; border-radius:10px; padding:10px 14px; font-size:0.85rem; margin-top:12px; text-align:center; display:none; }
+
+.already-registered {
+  background:linear-gradient(135deg,#dcfce7,#d1fae5);
+  border:2px solid #86efac; border-radius:14px;
+  padding:18px 20px; margin-bottom:16px; text-align:center; display:none;
+}
+.already-registered .ar-title { font-size:1rem; font-weight:800; color:#166534; margin-bottom:6px; }
+.already-registered .ar-dates { font-size:0.88rem; color:#15803d; margin-bottom:4px; }
+.already-registered .ar-notice { font-size:0.8rem; color:#4ade80; margin-top:6px; }
+
+.submit-btn {
+  width:100%; padding:15px; background:linear-gradient(135deg,#0ea5e9,#3b82f6);
+  color:#fff; border:none; border-radius:12px; font-size:1rem; font-weight:700;
+  cursor:pointer; transition:all 0.2s; letter-spacing:0.5px; margin-top:8px;
+}
+.submit-btn:hover { background:linear-gradient(135deg,#0284c7,#2563eb); box-shadow:0 4px 14px rgba(14,165,233,0.4); transform:translateY(-1px); }
+.submit-btn:disabled { background:#cbd5e1; cursor:not-allowed; transform:none; box-shadow:none; }
+
+/* 법인별 확인 */
+.company-tabs { display:flex; gap:8px; margin-bottom:18px; flex-wrap:wrap; }
+.co-tab {
+  flex:1; min-width:100px; padding:10px 12px; border:2px solid #e2e8f0;
+  border-radius:10px; font-size:0.9rem; font-weight:700; cursor:pointer;
+  background:#f8fafc; color:#64748b; transition:all 0.2s; text-align:center;
+}
+.co-tab.active { border-color:#0ea5e9; background:#e0f2fe; color:#0369a1; }
+.co-tab:hover:not(.active) { border-color:#94d5f5; }
+
+.view-months { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:20px; }
+.view-month-block { background:#f8fafc; border-radius:14px; padding:16px; }
+
+.day.has-vacation { background:linear-gradient(135deg,#d1fae5,#a7f3d0); color:#065f46!important; font-weight:700; cursor:default; }
+.vacation-names { position:absolute; bottom:1px; left:0; right:0; font-size:0.48rem; color:#065f46; text-align:center; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; line-height:1.1; }
+
+.legend { display:flex; gap:12px; align-items:center; margin-bottom:14px; flex-wrap:wrap; }
+.legend-item { display:flex; align-items:center; gap:5px; font-size:0.78rem; color:#475569; }
+.legend-box { width:16px; height:16px; border-radius:4px; }
+
+.staff-list { margin-top:18px; }
+.staff-list-title { font-size:0.85rem; font-weight:700; color:#334155; margin-bottom:10px; }
+.staff-item {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:10px 14px; background:#f0f9ff; border-radius:10px; margin-bottom:8px;
+  font-size:0.85rem; color:#0f172a; gap:8px; flex-wrap:wrap;
+}
+.staff-item .name { font-weight:700; color:#0369a1; white-space:nowrap; }
+.staff-item .dates { color:#475569; font-size:0.8rem; flex:1; }
+.cancel-btn {
+  padding:5px 12px; background:#fef2f2; border:1.5px solid #fca5a5;
+  color:#dc2626; border-radius:8px; font-size:0.78rem; font-weight:700;
+  cursor:pointer; transition:all 0.2s; white-space:nowrap;
+}
+.cancel-btn:hover { background:#fee2e2; border-color:#f87171; }
+
+.empty-state { text-align:center; padding:40px 20px; color:#94a3b8; }
+.empty-state .emoji { font-size:2.5rem; margin-bottom:12px; }
+.empty-state p { font-size:0.9rem; }
+
+.loading-state { text-align:center; padding:30px 20px; color:#64748b; font-size:0.9rem; }
+.loading-state::after { content:'⏳'; display:inline-block; margin-left:6px; animation:spin 1.2s linear infinite; }
+@keyframes spin { from{transform:rotate(0)} to{transform:rotate(360deg)} }
+
+/* 모달 */
+.modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:1000; align-items:center; justify-content:center; }
+.modal-overlay.show { display:flex; }
+.modal { background:#fff; border-radius:20px; padding:36px 32px; text-align:center; max-width:360px; width:90%; box-shadow:0 20px 60px rgba(0,0,0,0.2); animation:popIn 0.3s cubic-bezier(0.34,1.56,0.64,1); }
+@keyframes popIn { from{transform:scale(0.7);opacity:0} to{transform:scale(1);opacity:1} }
+.modal-icon { font-size:3rem; margin-bottom:12px; }
+.modal h2 { font-size:1.1rem; font-weight:800; color:#0f172a; margin-bottom:8px; }
+.modal p { font-size:0.9rem; color:#475569; line-height:1.6; margin-bottom:20px; }
+.modal-info { background:#f0f9ff; border-radius:10px; padding:12px; margin-bottom:12px; font-size:0.875rem; color:#0369a1; line-height:1.7; }
+.modal-warn { background:#fef9c3; border-left:4px solid #f59e0b; border-radius:10px; padding:11px 14px; margin-bottom:20px; font-size:0.83rem; color:#92400e; line-height:1.6; text-align:left; }
+.modal-btn { background:linear-gradient(135deg,#0ea5e9,#3b82f6); color:#fff; border:none; border-radius:10px; padding:12px 36px; font-size:0.95rem; font-weight:700; cursor:pointer; transition:all 0.2s; }
+.modal-btn:hover { opacity:0.9; transform:translateY(-1px); }
+.modal-btn-cancel { background:#fef2f2; color:#dc2626; border:1.5px solid #fca5a5; border-radius:10px; padding:11px 24px; font-size:0.95rem; font-weight:700; cursor:pointer; transition:all 0.2s; margin-right:8px; }
+.modal-btn-cancel:hover { background:#fee2e2; }
+.btn-row { display:flex; justify-content:center; gap:8px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>☀️ 여름휴가 예정일정 공유</h1>
+    <p>회사와 이름을 입력한 후 원하는 휴가일정을 클릭하세요</p>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('register', this)">📝 휴가 일정 등록</button>
+    <button class="tab-btn" onclick="switchTab('view', this)">📋 법인별 여름휴가 일정확인</button>
+  </div>
+
+  <!-- 등록 탭 -->
+  <div class="tab-content active" id="tab-register">
+    <div class="card">
+      <div class="form-row">
+        <div class="form-group">
+          <label>🏢 회사 선택</label>
+          <select id="company">
+            <option value="">-- 회사를 선택하세요 --</option>
+            <option value="더넥스트">더넥스트</option>
+            <option value="민컴퍼니">민컴퍼니</option>
+            <option value="아마겟돈">아마겟돈</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>👤 이름 선택</label>
+          <select id="username" disabled>
+            <option value="">-- 회사를 먼저 선택하세요 --</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="notice-box">
+      <div class="notice-title">📌 여름휴가 안내 및 주의사항</div>
+      <ul>
+        <li>여름휴가 사용 가능 기간: 2026년 6월 1일 ~ 2026년 8월 31일</li>
+        <li>여름휴가는 <strong>총 2일</strong>이 제공됩니다.</li>
+        <li>휴가는 <strong>반드시 연속된 2일</strong>을 사용해야 하며, 분할 사용은 불가합니다.</li>
+        <li>단, <strong>금요일 + 다음 월요일</strong> 조합은 주말 포함 연속 사용으로 인정됩니다. ✅</li>
+        <li>토요일·일요일 및 공휴일은 선택할 수 없습니다.</li>
+        <li>여름휴가 예정일정이 변경되는 경우 <strong>팀내 선 공유 부탁드립니다.</strong> 🙏</li>
+      </ul>
+    </div>
+
+    <!-- 이미 등록된 경우 안내 -->
+    <div class="already-registered" id="alreadyRegistered">
+      <div class="ar-title">✅ 이미 등록된 휴가 일정이 있습니다</div>
+      <div class="ar-dates" id="arDates"></div>
+      <div class="ar-notice">변경이 필요한 경우 [법인별 여름휴가 일정확인] 탭에서 취소 후 재등록해주세요.</div>
+    </div>
+
+    <div class="card" id="calendarCard">
+      <div class="months-grid" id="calendarGrid"></div>
+      <div id="selectedInfo" class="selected-info" style="display:none;">
+        <div class="count" id="selectedCount">0 / 2일 선택됨</div>
+        <div class="dates" id="selectedDates"></div>
+      </div>
+      <div class="error-msg" id="errorMsg"></div>
+    </div>
+
+    <button class="submit-btn" id="submitBtn" onclick="submitVacation()">✅ 여름휴가 일정 등록하기</button>
+  </div>
+
+  <!-- 법인별 확인 탭 -->
+  <div class="tab-content" id="tab-view">
+    <div class="card">
+      <div class="company-tabs">
+        <div class="co-tab active" onclick="switchCompany('더넥스트',this)">🏢 더넥스트</div>
+        <div class="co-tab" onclick="switchCompany('민컴퍼니',this)">🏢 민컴퍼니</div>
+        <div class="co-tab" onclick="switchCompany('아마겟돈',this)">🏢 아마겟돈</div>
+      </div>
+      <div class="legend">
+        <div class="legend-item"><div class="legend-box" style="background:linear-gradient(135deg,#d1fae5,#a7f3d0);"></div> 휴가 사용일</div>
+        <div class="legend-item"><div class="legend-box" style="background:#fff1f2;border:1px solid #fca5a5;"></div> 공휴일</div>
+        <div class="legend-item"><div class="legend-box" style="background:#f1f5f9;"></div> 주말</div>
+      </div>
+      <div class="view-months" id="viewCalendarGrid"></div>
+      <div class="staff-list" id="staffList"></div>
+    </div>
+  </div>
+</div>
+
+<!-- 회사/이름 미입력 팝업 -->
+<div class="modal-overlay" id="infoOverlay">
+  <div class="modal">
+    <div class="modal-icon">✏️</div>
+    <h2>입력 정보를 확인해주세요</h2>
+    <p>날짜를 선택하기 전에<br><strong>회사와 이름을 먼저 기재하세요.</strong></p>
+    <button class="modal-btn" onclick="closeModal('infoOverlay')">확인</button>
+  </div>
+</div>
+
+<!-- 공휴일 팝업 -->
+<div class="modal-overlay" id="holidayOverlay">
+  <div class="modal">
+    <div class="modal-icon">🚫</div>
+    <h2>선택 불가한 날짜입니다</h2>
+    <p><strong id="holidayName"></strong>은(는) 공휴일로<br>휴가 일정으로 선택할 수 없습니다.</p>
+    <button class="modal-btn" onclick="closeModal('holidayOverlay')">확인</button>
+  </div>
+</div>
+
+<!-- 이미 등록됨 팝업 -->
+<div class="modal-overlay" id="duplicateOverlay">
+  <div class="modal">
+    <div class="modal-icon">⚠️</div>
+    <h2>이미 등록된 일정이 있습니다</h2>
+    <p>여름휴가는 <strong>한 번만 등록</strong>할 수 있습니다.<br>변경이 필요한 경우 <strong>[법인별 여름휴가 일정확인]</strong> 탭에서 취소 후 재등록해주세요.</p>
+    <button class="modal-btn" onclick="closeModal('duplicateOverlay')">확인</button>
+  </div>
+</div>
+
+<!-- 취소 확인 팝업 -->
+<div class="modal-overlay" id="cancelConfirmOverlay">
+  <div class="modal">
+    <div class="modal-icon">🗑️</div>
+    <h2>휴가 일정을 취소하시겠습니까?</h2>
+    <p id="cancelConfirmText">취소 후에는 다시 등록할 수 있습니다.</p>
+    <div class="btn-row">
+      <button class="modal-btn-cancel" onclick="closeModal('cancelConfirmOverlay')">돌아가기</button>
+      <button class="modal-btn" onclick="confirmCancel()">취소하기</button>
+    </div>
+  </div>
+</div>
+
+<!-- 취소 완료 팝업 -->
+<div class="modal-overlay" id="cancelDoneOverlay">
+  <div class="modal">
+    <div class="modal-icon">✅</div>
+    <h2>휴가 일정이 취소되었습니다</h2>
+    <p>다시 등록하려면 [휴가 일정 등록] 탭에서<br>일정을 새로 입력해주세요.</p>
+    <button class="modal-btn" onclick="closeModal('cancelDoneOverlay')">확인</button>
+  </div>
+</div>
+
+<!-- 완료 팝업 -->
+<div class="modal-overlay" id="doneOverlay">
+  <div class="modal">
+    <div class="modal-icon">🎉</div>
+    <h2>여름휴가 예정일정 등록이<br>완료되었습니다!</h2>
+    <p>아래 내용으로 여름휴가 일정이 등록되었어요.</p>
+    <div class="modal-info" id="modalInfo"></div>
+    <div class="modal-warn">⚠️ <strong>여름휴가 일정이 변경되는 경우 팀내 공유 필수입니다.</strong></div>
+    <button class="modal-btn" onclick="closeModal('doneOverlay'); resetForm()">확인</button>
+  </div>
+</div>
+
+<!-- 통신 오류 팝업 -->
+<div class="modal-overlay" id="networkErrorOverlay">
+  <div class="modal">
+    <div class="modal-icon">📡</div>
+    <h2>서버 연결에 실패했습니다</h2>
+    <p id="networkErrorText">잠시 후 다시 시도해주세요.</p>
+    <button class="modal-btn" onclick="closeModal('networkErrorOverlay')">확인</button>
+  </div>
+</div>
+
+<script>
+// ============================================================
+//  ⚙️  API 설정 — Apps Script 웹앱 배포 후 URL을 여기에 붙여넣으세요
+// ============================================================
+const API_URL = '__PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE__';
+
+const MEMBERS={
+  '더넥스트':['임지원','이효진','김채연','김용태','정금구','정민','김용완'],
+  '민컴퍼니':['전형진','신유영','장윤정','홍감사','이현규','최소희','손나영','정은수'],
+  '아마겟돈':['심지원','이상빈','강세미']
+};
+
+const MONTHS=[{year:2026,month:6},{year:2026,month:7},{year:2026,month:8}];
+const MONTH_NAMES=['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
+const DAY_NAMES=['일','월','화','수','목','금','토'];
+const HOLIDAYS={
+  '2026-06-03':'지방선거일','2026-06-06':'현충일',
+  '2026-07-17':'제헌절','2026-08-15':'광복절','2026-08-17':'대체공휴일(광복절)'
+};
+
+let selectedDays=[];
+let currentViewCompany='더넥스트';
+let cancelTarget=null; // {company, name}
+
+// ── 모달 ──
+function closeModal(id){ document.getElementById(id).classList.remove('show'); }
+function showNetworkError(msg){
+  document.getElementById('networkErrorText').textContent = msg || '잠시 후 다시 시도해주세요.';
+  document.getElementById('networkErrorOverlay').classList.add('show');
+}
+
+// ── 탭 전환 ──
+function switchTab(tab, btn){
+  document.querySelectorAll('.tab-content').forEach(el=>el.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(el=>el.classList.remove('active'));
+  document.getElementById('tab-'+tab).classList.add('active');
+  btn.classList.add('active');
+  if(tab==='view') renderViewCalendar(currentViewCompany);
+}
+function switchCompany(name,el){
+  document.querySelectorAll('.co-tab').forEach(e=>e.classList.remove('active'));
+  el.classList.add('active');
+  currentViewCompany=name;
+  renderViewCalendar(name);
+}
+
+// ── 유틸 ──
+function dateKey(y,m,d){ return `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`; }
+function getDayOfWeek(y,m,d){ return new Date(y,m-1,d).getDay(); }
+function isWeekend(y,m,d){ const d2=getDayOfWeek(y,m,d); return d2===0||d2===6; }
+function fmtDate(k){
+  const dt=new Date(k);
+  return `${dt.getFullYear()}년 ${dt.getMonth()+1}월 ${dt.getDate()}일(${DAY_NAMES[dt.getDay()]})`;
+}
+
+// ── API ──
+// Content-Type 헤더를 지정하지 않으면 simple request로 처리되어 CORS preflight를 피할 수 있음
+async function apiGet(){
+  const r = await fetch(API_URL, { method:'GET' });
+  if(!r.ok) throw new Error('GET '+r.status);
+  return await r.json();
+}
+async function apiPost(payload){
+  const r = await fetch(API_URL, {
+    method:'POST',
+    body: JSON.stringify(payload),
+    redirect:'follow'
+  });
+  if(!r.ok) throw new Error('POST '+r.status);
+  return await r.json();
+}
+
+async function loadRecords(){
+  try { return await apiGet(); }
+  catch(err){ console.error(err); return []; }
+}
+async function getRecord(company,name){
+  const all=await loadRecords();
+  return all.find(r=>r.company===company&&r.name===name)||null;
+}
+async function addRecord(record){
+  const res = await apiPost({ action:'add', ...record });
+  if(!res.ok) throw new Error(res.error || 'add_failed');
+  return res;
+}
+async function deleteRecord({company,name}){
+  const res = await apiPost({ action:'delete', company, name });
+  if(!res.ok) throw new Error(res.error || 'delete_failed');
+  return res;
+}
+
+// ── 등록 캘린더 렌더 ──
+function renderCalendar(locked=false){
+  const grid=document.getElementById('calendarGrid');
+  grid.innerHTML='';
+  MONTHS.forEach(({year,month})=>{
+    const block=document.createElement('div'); block.className='month-block';
+    const title=document.createElement('div'); title.className='month-title';
+    title.textContent=`${year}년 ${MONTH_NAMES[month-1]}`;
+    block.appendChild(title);
+    const wdRow=document.createElement('div'); wdRow.className='weekdays';
+    DAY_NAMES.forEach((n,i)=>{ const s=document.createElement('span'); s.textContent=n; if(i===0)s.className='sun'; if(i===6)s.className='sat'; wdRow.appendChild(s); });
+    block.appendChild(wdRow);
+    const daysDiv=document.createElement('div'); daysDiv.className='days-grid';
+    const firstDow=new Date(year,month-1,1).getDay();
+    const totalDays=new Date(year,month,0).getDate();
+    for(let i=0;i<firstDow;i++){ const e=document.createElement('div'); e.className='day empty'; daysDiv.appendChild(e); }
+    for(let d=1;d<=totalDays;d++){
+      const cell=document.createElement('div'); cell.className='day';
+      cell.textContent=d;
+      const key=dateKey(year,month,d);
+      const dow=getDayOfWeek(year,month,d);
+      if(HOLIDAYS[key]){
+        cell.classList.add('holiday');
+        const dot=document.createElement('span'); dot.className='holiday-dot'; cell.appendChild(dot);
+        if(!locked) cell.addEventListener('click',()=>{
+          const co=document.getElementById('company').value;
+          const nm=document.getElementById('username').value.trim();
+          if(!co||!nm){ document.getElementById('infoOverlay').classList.add('show'); return; }
+          document.getElementById('holidayName').textContent=HOLIDAYS[key];
+          document.getElementById('holidayOverlay').classList.add('show');
+        });
+      } else if(isWeekend(year,month,d)){
+        cell.classList.add('weekend');
+        if(dow===6)cell.classList.add('sat'); if(dow===0)cell.classList.add('sun');
+      } else {
+        if(locked){ cell.classList.add('locked'); }
+        else {
+          if(selectedDays.includes(key)) cell.classList.add('selected');
+          cell.dataset.key=key; cell.dataset.dow=dow; cell.dataset.y=year; cell.dataset.m=month; cell.dataset.d=d;
+          cell.addEventListener('click',onDayClick);
+        }
+      }
+      daysDiv.appendChild(cell);
+    }
+    block.appendChild(daysDiv);
+    grid.appendChild(block);
+  });
+  updateSelectedInfo();
+}
+
+function onDayClick(e){
+  const key=e.currentTarget.dataset.key;
+  hideError();
+  const co=document.getElementById('company').value;
+  const nm=document.getElementById('username').value.trim();
+  if(!co||!nm){ document.getElementById('infoOverlay').classList.add('show'); return; }
+  if(selectedDays.includes(key)){ selectedDays=selectedDays.filter(k=>k!==key); renderCalendar(); return; }
+  if(selectedDays.length>=2){ showError('최대 2일까지만 선택할 수 있습니다.'); return; }
+  if(selectedDays.length===1&&!isValidPair(selectedDays[0],key)){ showError('연속된 날짜만 선택 가능합니다. (금+다음월요일 조합도 허용)'); return; }
+  selectedDays.push(key); selectedDays.sort(); renderCalendar();
+}
+
+function isValidPair(k1,k2){
+  const [a,b]=[k1,k2].sort();
+  const d1=new Date(a),d2=new Date(b);
+  const diff=(d2-d1)/(86400000);
+  if(diff===1) return true;
+  if(diff===3&&d1.getDay()===5&&d2.getDay()===1) return true;
+  return false;
+}
+function updateSelectedInfo(){
+  const info=document.getElementById('selectedInfo');
+  if(selectedDays.length===0){ info.style.display='none'; return; }
+  info.style.display='block';
+  document.getElementById('selectedCount').textContent=`${selectedDays.length} / 2일 선택됨`;
+  document.getElementById('selectedDates').textContent=selectedDays.map(fmtDate).join(' · ');
+}
+function showError(msg){ const el=document.getElementById('errorMsg'); el.textContent='⚠️ '+msg; el.style.display='block'; }
+function hideError(){ document.getElementById('errorMsg').style.display='none'; }
+
+// 회사/이름 변경 시 이미 등록됐는지 체크
+async function checkExisting(){
+  const co=document.getElementById('company').value;
+  const nm=document.getElementById('username').value.trim();
+  const arBox=document.getElementById('alreadyRegistered');
+  const submitBtn=document.getElementById('submitBtn');
+  if(!co||!nm){ arBox.style.display='none'; submitBtn.disabled=false; renderCalendar(false); return; }
+  const rec=await getRecord(co,nm);
+  if(rec){
+    arBox.style.display='block';
+    document.getElementById('arDates').textContent=`📅 ${rec.days.map(fmtDate).join(' · ')}`;
+    submitBtn.disabled=true;
+    renderCalendar(true);
+  } else {
+    arBox.style.display='none';
+    submitBtn.disabled=false;
+    renderCalendar(false);
+  }
+}
+document.getElementById('company').addEventListener('change', ()=>{
+  const co=document.getElementById('company').value;
+  const sel=document.getElementById('username');
+  sel.innerHTML='';
+  if(!co){
+    sel.disabled=true;
+    sel.innerHTML='<option value="">-- 회사를 먼저 선택하세요 --</option>';
+  } else {
+    sel.disabled=false;
+    sel.innerHTML='<option value="">-- 이름을 선택하세요 --</option>';
+    MEMBERS[co].forEach(name=>{
+      const opt=document.createElement('option');
+      opt.value=name; opt.textContent=name;
+      sel.appendChild(opt);
+    });
+  }
+  checkExisting();
+});
+document.getElementById('username').addEventListener('change', checkExisting);
+
+async function submitVacation(){
+  const company=document.getElementById('company').value;
+  const name=document.getElementById('username').value.trim();
+  const submitBtn=document.getElementById('submitBtn');
+  hideError();
+  if(!company){ showError('회사를 선택해주세요.'); return; }
+  if(!name){ showError('이름을 입력해주세요.'); return; }
+  if(selectedDays.length<2){ showError('2일을 모두 선택해주세요.'); return; }
+
+  submitBtn.disabled = true;
+  const originalText = submitBtn.textContent;
+  submitBtn.textContent = '⏳ 등록 중...';
+
+  try {
+    await addRecord({ company, name, days: selectedDays });
+    document.getElementById('modalInfo').innerHTML=
+      `🏢 <strong>${company}</strong> · 👤 <strong>${name}</strong><br>`+
+      `📅 ${fmtDate(selectedDays[0])}<br>📅 ${fmtDate(selectedDays[1])}`;
+    document.getElementById('doneOverlay').classList.add('show');
+  } catch(err) {
+    if(String(err.message).includes('duplicate')){
+      document.getElementById('duplicateOverlay').classList.add('show');
+    } else {
+      showNetworkError('등록에 실패했습니다. 네트워크 상태를 확인하고 다시 시도해주세요.');
+    }
+    submitBtn.disabled = false;
+  } finally {
+    submitBtn.textContent = originalText;
+  }
+}
+
+function resetForm(){
+  document.getElementById('company').value='';
+  document.getElementById('username').value='';
+  document.getElementById('username').disabled=true;
+  document.getElementById('username').innerHTML='<option value="">-- 회사를 먼저 선택하세요 --</option>';
+  selectedDays=[];
+  document.getElementById('alreadyRegistered').style.display='none';
+  document.getElementById('submitBtn').disabled=false;
+  renderCalendar(false);
+}
+
+// ── 법인별 확인 캘린더 ──
+async function renderViewCalendar(company){
+  const staffList=document.getElementById('staffList');
+  const grid=document.getElementById('viewCalendarGrid');
+  staffList.innerHTML='<div class="loading-state">데이터를 불러오는 중</div>';
+  grid.innerHTML='';
+
+  const records=await loadRecords();
+  const compRecs=records.filter(r=>r.company===company);
+  const dayMap={};
+  compRecs.forEach(r=>{ r.days.forEach(k=>{ if(!dayMap[k])dayMap[k]=[]; dayMap[k].push(r.name); }); });
+
+  grid.innerHTML='';
+  MONTHS.forEach(({year,month})=>{
+    const block=document.createElement('div'); block.className='view-month-block';
+    const title=document.createElement('div'); title.className='month-title';
+    title.textContent=`${year}년 ${MONTH_NAMES[month-1]}`;
+    block.appendChild(title);
+    const wdRow=document.createElement('div'); wdRow.className='weekdays';
+    DAY_NAMES.forEach((n,i)=>{ const s=document.createElement('span'); s.textContent=n; if(i===0)s.className='sun'; if(i===6)s.className='sat'; wdRow.appendChild(s); });
+    block.appendChild(wdRow);
+    const daysDiv=document.createElement('div'); daysDiv.className='days-grid';
+    const firstDow=new Date(year,month-1,1).getDay();
+    const totalDays=new Date(year,month,0).getDate();
+    for(let i=0;i<firstDow;i++){ const e=document.createElement('div'); e.className='day empty'; daysDiv.appendChild(e); }
+    for(let d=1;d<=totalDays;d++){
+      const cell=document.createElement('div'); cell.className='day';
+      cell.textContent=d;
+      const key=dateKey(year,month,d);
+      const dow=getDayOfWeek(year,month,d);
+      if(HOLIDAYS[key]){
+        cell.classList.add('holiday');
+        const dot=document.createElement('span'); dot.className='holiday-dot'; cell.appendChild(dot);
+      } else if(isWeekend(year,month,d)){
+        cell.classList.add('weekend');
+        if(dow===6)cell.classList.add('sat'); if(dow===0)cell.classList.add('sun');
+      } else if(dayMap[key]){
+        cell.classList.add('has-vacation');
+        const badge=document.createElement('span'); badge.className='vacation-names';
+        badge.textContent=dayMap[key].join(','); cell.appendChild(badge);
+        cell.style.cursor='default';
+      }
+      daysDiv.appendChild(cell);
+    }
+    block.appendChild(daysDiv);
+    grid.appendChild(block);
+  });
+
+  // 직원 목록
+  if(compRecs.length===0){
+    staffList.innerHTML=`<div class="empty-state"><div class="emoji">📭</div><p>${company}의 등록된 휴가 일정이 없습니다.</p></div>`;
+    return;
+  }
+  staffList.innerHTML=`<div class="staff-list-title">👥 ${company} 휴가 신청 현황 (${compRecs.length}명)</div>`;
+  compRecs.forEach(r=>{
+    const item=document.createElement('div'); item.className='staff-item';
+    const dates=r.days.map(k=>{ const dt=new Date(k); return `${dt.getMonth()+1}/${dt.getDate()}(${DAY_NAMES[dt.getDay()]})`; }).join(' · ');
+    const nameSpan=`<span class="name">👤 ${r.name}</span>`;
+    const dateSpan=`<span class="dates">📅 ${dates}</span>`;
+    const cancelBtn=`<button class="cancel-btn" onclick="requestCancel('${r.company}','${r.name}')">취소</button>`;
+    item.innerHTML=nameSpan+dateSpan+cancelBtn;
+    staffList.appendChild(item);
+  });
+}
+
+function requestCancel(company, name){
+  cancelTarget={company,name};
+  document.getElementById('cancelConfirmText').textContent=`${company} · ${name}님의 휴가 일정을 취소하시겠습니까?`;
+  document.getElementById('cancelConfirmOverlay').classList.add('show');
+}
+
+async function confirmCancel(){
+  closeModal('cancelConfirmOverlay');
+  if(!cancelTarget) return;
+  try {
+    await deleteRecord(cancelTarget);
+  } catch(err) {
+    showNetworkError('취소 처리에 실패했습니다. 다시 시도해주세요.');
+    cancelTarget=null;
+    return;
+  }
+  cancelTarget=null;
+  document.getElementById('cancelDoneOverlay').classList.add('show');
+  renderViewCalendar(currentViewCompany);
+}
+
+// 취소 완료 후 확인 누르면 등록탭 체크도 갱신
+document.getElementById('cancelDoneOverlay').addEventListener('click', e=>{
+  if(e.target.classList.contains('modal-btn')) checkExisting();
+});
+
+renderCalendar();
+</script>
+</body>
+</html>

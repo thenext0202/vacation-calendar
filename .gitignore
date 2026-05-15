@@ -1,0 +1,11 @@
+# 기존 원본 백업 (window.storage 기반 — 동작하지 않음)
+vacation_calendar (1).html
+
+# OS / 에디터
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+.claude/
+*.swp
