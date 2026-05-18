@@ -21,7 +21,20 @@ function getSheet_() {
     sheet.getRange('A1:E1').setFontWeight('bold').setBackground('#e0f2fe');
     sheet.setFrozenRows(1);
   }
+  // 날짜 컬럼(C,D)은 텍스트 포맷 — Sheets가 "2026-08-11"을 자동으로 Date로 변환하지 않도록 차단
+  sheet.getRange('C:D').setNumberFormat('@');
   return sheet;
+}
+
+// Date 객체든 문자열이든 'YYYY-MM-DD'로 정규화
+function formatDay_(v) {
+  if (v instanceof Date) {
+    const y = v.getFullYear();
+    const m = String(v.getMonth() + 1).padStart(2, '0');
+    const d = String(v.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+  return String(v);
 }
 
 function jsonOut_(obj) {
@@ -40,7 +53,7 @@ function doGet() {
     records.push({
       company: String(company),
       name: String(name),
-      days: [String(day1), String(day2)]
+      days: [formatDay_(day1), formatDay_(day2)]
     });
   }
   return jsonOut_(records);
